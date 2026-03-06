@@ -5,7 +5,6 @@ const STORAGE_KEY = 'kidtimer_tasks';
 const DEFAULT_TASKS: Task[] = [
   { id: 'pajamas', name: 'Pajamas', emoji: '🩲', bestTime: null },
   { id: 'dressed', name: 'Get Dressed', emoji: '👕', bestTime: null },
-  { id: 'milk', name: 'Drink Milk', emoji: '🥛', bestTime: null },
   { id: 'teeth', name: 'Brush Teeth', emoji: '🪥', bestTime: null },
   { id: 'shoes', name: 'Shoes', emoji: '👟', bestTime: null },
 ];

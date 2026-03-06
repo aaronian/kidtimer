@@ -37,6 +37,13 @@ export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
     setPressedTaskId(null);
   }
 
+  function handleDeleteTask(task: Task) {
+    if (!confirm(`Delete "${task.name}"?`)) return;
+    const updated = tasks.filter(t => t.id !== task.id);
+    onTasksChange(updated);
+    setPressedTaskId(null);
+  }
+
   function handleAdd() {
     if (!newName.trim()) return;
     const newTask: Task = {
@@ -97,6 +104,12 @@ export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
                       🗑️ Clear record
                     </button>
                   )}
+                  <button
+                    style={styles.deleteBtn}
+                    onClick={e => { e.stopPropagation(); handleDeleteTask(task); }}
+                  >
+                    ✕ Delete task
+                  </button>
                   <button
                     style={styles.cancelOverlayBtn}
                     onClick={e => { e.stopPropagation(); setPressedTaskId(null); }}
@@ -193,6 +206,17 @@ const styles: Record<string, React.CSSProperties> = {
   clearBtn: {
     padding: '10px 16px',
     backgroundColor: '#ef4444',
+    color: '#fff',
+    fontWeight: 700,
+    fontSize: 14,
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    width: '80%',
+  },
+  deleteBtn: {
+    padding: '10px 16px',
+    backgroundColor: '#64748b',
     color: '#fff',
     fontWeight: 700,
     fontSize: 14,

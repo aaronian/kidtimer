@@ -20,7 +20,7 @@ function formatTime(seconds: number): string {
 export default function Result({ task, elapsed, isNewRecord, onDone }: Props) {
   useEffect(() => {
     if (isNewRecord) {
-      // Big confetti burst
+      // Big confetti burst for a new record
       confetti({
         particleCount: 150,
         spread: 80,
@@ -32,6 +32,14 @@ export default function Result({ task, elapsed, isNewRecord, onDone }: Props) {
         spread: 60,
         origin: { y: 0.6 },
       }), 400);
+    } else {
+      // Small celebration burst just for finishing — good job!
+      confetti({
+        particleCount: 50,
+        spread: 55,
+        origin: { y: 0.6 },
+        colors: ['#4ade80', '#60a5fa', '#f472b6', '#a78bfa'],
+      });
     }
   }, [isNewRecord]);
 

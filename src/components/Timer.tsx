@@ -6,12 +6,15 @@ interface Props {
   onStop: (elapsed: number) => void;
 }
 
+// Fun colors that cycle when there's no time pressure
+const FUN_COLORS = ['#4ade80', '#60a5fa', '#f472b6', '#a78bfa', '#34d399', '#fb923c'];
+
 // Returns a color based on how close we are to the best time.
-// No record = always green. Getting close = yellow → red.
-function getBackgroundColor(elapsed: number, best: number | null): string {
-  if (best === null) return '#4ade80'; // green, no pressure
+// Under 70% of best (or no record) = cycle through fun colors. Getting close = yellow → red.
+function getBackgroundColor(elapsed: number, best: number | null, cycleColor: string): string {
+  if (best === null) return cycleColor;
   const ratio = elapsed / best;
-  if (ratio < 0.7) return '#4ade80';   // green
+  if (ratio < 0.7) return cycleColor;
   if (ratio < 0.9) return '#facc15';   // yellow
   if (ratio < 1.0) return '#fb923c';   // orange
   return '#f87171';                     // red — over best time
@@ -27,6 +30,7 @@ function formatTime(seconds: number): string {
 
 export default function Timer({ task, onStop }: Props) {
   const [elapsed, setElapsed] = useState(0);
+  const [colorIdx, setColorIdx] = useState(0);
   const startRef = useRef<number>(Date.now());
   const frameRef = useRef<number>(0);
 
@@ -39,7 +43,15 @@ export default function Timer({ task, onStop }: Props) {
     return () => cancelAnimationFrame(frameRef.current);
   }, []);
 
-  const bgColor = getBackgroundColor(elapsed, task.bestTime);
+  // Cycle through fun colors every 5 seconds
+  useEffect(() => {
+    const id = setInterval(() => {
+      setColorIdx(i => (i + 1) % FUN_COLORS.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  const bgColor = getBackgroundColor(elapsed, task.bestTime, FUN_COLORS[colorIdx]);
 
   return (
     <div style={{ ...styles.container, backgroundColor: bgColor }}>
