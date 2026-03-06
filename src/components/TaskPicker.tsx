@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import type { Task } from '../types';
 import { saveTasks } from '../storage';
 
@@ -11,37 +11,17 @@ interface Props {
 export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
-  const [pressedTaskId, setPressedTaskId] = useState<string | null>(null);
-  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const didLongPress = useRef(false);
-
-  function startPress(taskId: string) {
-    didLongPress.current = false;
-    pressTimer.current = setTimeout(() => {
-      didLongPress.current = true;
-      setPressedTaskId(taskId);
-    }, 600);
-  }
-
-  function cancelPress() {
-    if (pressTimer.current) {
-      clearTimeout(pressTimer.current);
-      pressTimer.current = null;
-    }
-  }
+  const [editing, setEditing] = useState(false);
 
   function handleClearBest(task: Task) {
     if (!confirm(`Clear best time for ${task.name}?`)) return;
     const updated = tasks.map(t => t.id === task.id ? { ...t, bestTime: null } : t);
     onTasksChange(updated);
-    setPressedTaskId(null);
   }
 
   function handleDeleteTask(task: Task) {
     if (!confirm(`Delete "${task.name}"?`)) return;
-    const updated = tasks.filter(t => t.id !== task.id);
-    onTasksChange(updated);
-    setPressedTaskId(null);
+    onTasksChange(tasks.filter(t => t.id !== task.id));
   }
 
   function handleAdd() {
@@ -69,60 +49,51 @@ export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>⏱️ KidTimer</h1>
-      <p style={styles.subtitle}>What are we doing?</p>
+      <div style={styles.header}>
+        <h1 style={styles.title}>⏱️ KidTimer</h1>
+        <button
+          style={editing ? styles.doneBtn : styles.editBtn}
+          onClick={() => { setEditing(e => !e); setAdding(false); }}
+        >
+          {editing ? 'Done' : 'Edit'}
+        </button>
+      </div>
+      <p style={styles.subtitle}>{editing ? 'Tap a card to manage it' : 'What are we doing?'}</p>
 
       <div style={styles.grid}>
-        {tasks.map(task => {
-          const isPressed = pressedTaskId === task.id;
-          return (
-            <div
-              key={task.id}
-              style={{ ...styles.card, position: 'relative', overflow: 'hidden', userSelect: 'none' }}
-              onMouseDown={() => startPress(task.id)}
-              onMouseUp={cancelPress}
-              onMouseLeave={cancelPress}
-              onTouchStart={() => startPress(task.id)}
-              onTouchEnd={cancelPress}
-              onClick={() => {
-                if (didLongPress.current) { didLongPress.current = false; return; }
-                if (pressedTaskId) { setPressedTaskId(null); return; }
-                onSelect(task);
-              }}
-            >
-              <span style={styles.emoji}>{task.emoji}</span>
-              <span style={styles.taskName}>{task.name}</span>
-              <span style={styles.best}>{formatBest(task.bestTime)}</span>
+        {tasks.map(task => (
+          <div
+            key={task.id}
+            style={{ ...styles.card, cursor: editing ? 'default' : 'pointer', position: 'relative' }}
+            onClick={() => { if (!editing) onSelect(task); }}
+          >
+            {/* Delete badge — top-right corner in edit mode */}
+            {editing && (
+              <button
+                style={styles.deleteBadge}
+                onClick={e => { e.stopPropagation(); handleDeleteTask(task); }}
+              >
+                ✕
+              </button>
+            )}
 
-              {isPressed && (
-                <div style={styles.overlay}>
-                  {task.bestTime !== null && (
-                    <button
-                      style={styles.clearBtn}
-                      onClick={e => { e.stopPropagation(); handleClearBest(task); }}
-                    >
-                      🗑️ Clear record
-                    </button>
-                  )}
-                  <button
-                    style={styles.deleteBtn}
-                    onClick={e => { e.stopPropagation(); handleDeleteTask(task); }}
-                  >
-                    ✕ Delete task
-                  </button>
-                  <button
-                    style={styles.cancelOverlayBtn}
-                    onClick={e => { e.stopPropagation(); setPressedTaskId(null); }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
+            <span style={styles.emoji}>{task.emoji}</span>
+            <span style={styles.taskName}>{task.name}</span>
+            <span style={styles.best}>{formatBest(task.bestTime)}</span>
 
-        {adding ? (
+            {/* Clear record button — shown in edit mode when a record exists */}
+            {editing && task.bestTime !== null && (
+              <button
+                style={styles.clearRecordBtn}
+                onClick={e => { e.stopPropagation(); handleClearBest(task); }}
+              >
+                Clear record
+              </button>
+            )}
+          </div>
+        ))}
+
+        {!editing && (adding ? (
           <div style={styles.addForm}>
             <input
               autoFocus
@@ -142,7 +113,7 @@ export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
             <span style={{ fontSize: 36 }}>＋</span>
             <span style={styles.taskName}>Add Task</span>
           </button>
-        )}
+        ))}
       </div>
     </div>
   );
@@ -155,12 +126,43 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '24px 16px',
     overflowY: 'auto',
   },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 4,
+  },
   title: {
     fontSize: 36,
     fontWeight: 800,
     textAlign: 'center',
     color: '#166534',
-    marginBottom: 4,
+    margin: 0,
+  },
+  editBtn: {
+    position: 'absolute',
+    right: 0,
+    padding: '6px 14px',
+    fontSize: 15,
+    fontWeight: 700,
+    color: '#166534',
+    backgroundColor: 'transparent',
+    border: '2px solid #bbf7d0',
+    borderRadius: 10,
+    cursor: 'pointer',
+  },
+  doneBtn: {
+    position: 'absolute',
+    right: 0,
+    padding: '6px 14px',
+    fontSize: 15,
+    fontWeight: 700,
+    color: '#fff',
+    backgroundColor: '#4ade80',
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
   },
   subtitle: {
     fontSize: 18,
@@ -185,56 +187,40 @@ const styles: Record<string, React.CSSProperties> = {
     border: '3px solid #bbf7d0',
     borderRadius: 20,
     padding: '20px 12px',
-    cursor: 'pointer',
     gap: 6,
     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   },
   emoji: { fontSize: 44 },
   taskName: { fontSize: 16, fontWeight: 700, color: '#166534' },
   best: { fontSize: 12, color: '#86efac', fontWeight: 500 },
-  overlay: {
+  deleteBadge: {
     position: 'absolute',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 17,
-  },
-  clearBtn: {
-    padding: '10px 16px',
+    top: -10,
+    right: -10,
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
     backgroundColor: '#ef4444',
     color: '#fff',
-    fontWeight: 700,
-    fontSize: 14,
-    border: 'none',
-    borderRadius: 10,
-    cursor: 'pointer',
-    width: '80%',
-  },
-  deleteBtn: {
-    padding: '10px 16px',
-    backgroundColor: '#64748b',
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: 14,
-    border: 'none',
-    borderRadius: 10,
-    cursor: 'pointer',
-    width: '80%',
-  },
-  cancelOverlayBtn: {
-    padding: '8px 16px',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    color: '#fff',
-    fontWeight: 600,
+    fontWeight: 900,
     fontSize: 13,
-    border: 'none',
-    borderRadius: 10,
+    border: '2px solid #fff',
     cursor: 'pointer',
-    width: '80%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+  },
+  clearRecordBtn: {
+    marginTop: 4,
+    padding: '4px 12px',
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#ef4444',
+    backgroundColor: '#fee2e2',
+    border: 'none',
+    borderRadius: 8,
+    cursor: 'pointer',
   },
   addCard: {
     display: 'flex',
