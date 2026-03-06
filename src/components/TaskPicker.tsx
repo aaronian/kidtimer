@@ -8,9 +8,17 @@ interface Props {
   onSelect: (task: Task) => void;
 }
 
+const EMOJI_OPTIONS = [
+  '🪥','🛁','🚿','🧴','👕','👗','👔','👟','👜','🎒',
+  '🥛','🍌','🍎','🥣','🥪','🧃','☕',
+  '📚','✏️','🎨','🎵','🧩','🎮','🚲','🏃','🤸','💪',
+  '🐕','🐱','🛏️','🧹',
+];
+
 export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
+  const [selectedEmoji, setSelectedEmoji] = useState(EMOJI_OPTIONS[0]);
   const [editing, setEditing] = useState(false);
 
   function handleClearBest(task: Task) {
@@ -29,13 +37,14 @@ export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
     const newTask: Task = {
       id: Date.now().toString(),
       name: newName.trim(),
-      emoji: '⭐',
+      emoji: selectedEmoji,
       bestTime: null,
     };
     const updated = [...tasks, newTask];
     onTasksChange(updated);
     saveTasks(updated);
     setNewName('');
+    setSelectedEmoji(EMOJI_OPTIONS[0]);
     setAdding(false);
   }
 
@@ -95,6 +104,22 @@ export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
 
         {!editing && (adding ? (
           <div style={styles.addForm}>
+            {/* Emoji picker — scrollable row of options */}
+            <div style={styles.emojiPicker}>
+              {EMOJI_OPTIONS.map(emoji => (
+                <button
+                  key={emoji}
+                  style={{
+                    ...styles.emojiOption,
+                    backgroundColor: emoji === selectedEmoji ? '#bbf7d0' : 'transparent',
+                    border: emoji === selectedEmoji ? '2px solid #4ade80' : '2px solid transparent',
+                  }}
+                  onClick={() => setSelectedEmoji(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
             <input
               autoFocus
               style={styles.input}
@@ -105,7 +130,7 @@ export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
             />
             <div style={styles.addButtons}>
               <button style={styles.confirmBtn} onClick={handleAdd}>Add</button>
-              <button style={styles.cancelBtn} onClick={() => setAdding(false)}>Cancel</button>
+              <button style={styles.cancelBtn} onClick={() => { setAdding(false); setSelectedEmoji(EMOJI_OPTIONS[0]); }}>Cancel</button>
             </div>
           </div>
         ) : (
@@ -243,6 +268,21 @@ const styles: Record<string, React.CSSProperties> = {
     border: '3px solid #86efac',
     borderRadius: 20,
     padding: 16,
+    gridColumn: '1 / -1', // span full width of the 2-col grid
+  },
+  emojiPicker: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 4,
+    maxHeight: 120,
+    overflowY: 'auto',
+  },
+  emojiOption: {
+    fontSize: 24,
+    padding: 4,
+    borderRadius: 8,
+    cursor: 'pointer',
+    lineHeight: 1,
   },
   input: {
     fontSize: 16,
