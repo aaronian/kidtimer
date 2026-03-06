@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Task } from '../types';
 import { saveTasks } from '../storage';
 
@@ -11,6 +11,31 @@ interface Props {
 export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
+  const [pressedTaskId, setPressedTaskId] = useState<string | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
+
+  function startPress(taskId: string) {
+    didLongPress.current = false;
+    pressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      setPressedTaskId(taskId);
+    }, 600);
+  }
+
+  function cancelPress() {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  }
+
+  function handleClearBest(task: Task) {
+    if (!confirm(`Clear best time for ${task.name}?`)) return;
+    const updated = tasks.map(t => t.id === task.id ? { ...t, bestTime: null } : t);
+    onTasksChange(updated);
+    setPressedTaskId(null);
+  }
 
   function handleAdd() {
     if (!newName.trim()) return;
@@ -41,17 +66,48 @@ export default function TaskPicker({ tasks, onTasksChange, onSelect }: Props) {
       <p style={styles.subtitle}>What are we doing?</p>
 
       <div style={styles.grid}>
-        {tasks.map(task => (
-          <button
-            key={task.id}
-            style={styles.card}
-            onClick={() => onSelect(task)}
-          >
-            <span style={styles.emoji}>{task.emoji}</span>
-            <span style={styles.taskName}>{task.name}</span>
-            <span style={styles.best}>{formatBest(task.bestTime)}</span>
-          </button>
-        ))}
+        {tasks.map(task => {
+          const isPressed = pressedTaskId === task.id;
+          return (
+            <div
+              key={task.id}
+              style={{ ...styles.card, position: 'relative', overflow: 'hidden', userSelect: 'none' }}
+              onMouseDown={() => startPress(task.id)}
+              onMouseUp={cancelPress}
+              onMouseLeave={cancelPress}
+              onTouchStart={() => startPress(task.id)}
+              onTouchEnd={cancelPress}
+              onClick={() => {
+                if (didLongPress.current) { didLongPress.current = false; return; }
+                if (pressedTaskId) { setPressedTaskId(null); return; }
+                onSelect(task);
+              }}
+            >
+              <span style={styles.emoji}>{task.emoji}</span>
+              <span style={styles.taskName}>{task.name}</span>
+              <span style={styles.best}>{formatBest(task.bestTime)}</span>
+
+              {isPressed && (
+                <div style={styles.overlay}>
+                  {task.bestTime !== null && (
+                    <button
+                      style={styles.clearBtn}
+                      onClick={e => { e.stopPropagation(); handleClearBest(task); }}
+                    >
+                      🗑️ Clear record
+                    </button>
+                  )}
+                  <button
+                    style={styles.cancelOverlayBtn}
+                    onClick={e => { e.stopPropagation(); setPressedTaskId(null); }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {adding ? (
           <div style={styles.addForm}>
@@ -123,6 +179,39 @@ const styles: Record<string, React.CSSProperties> = {
   emoji: { fontSize: 44 },
   taskName: { fontSize: 16, fontWeight: 700, color: '#166534' },
   best: { fontSize: 12, color: '#86efac', fontWeight: 500 },
+  overlay: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 17,
+  },
+  clearBtn: {
+    padding: '10px 16px',
+    backgroundColor: '#ef4444',
+    color: '#fff',
+    fontWeight: 700,
+    fontSize: 14,
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    width: '80%',
+  },
+  cancelOverlayBtn: {
+    padding: '8px 16px',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    color: '#fff',
+    fontWeight: 600,
+    fontSize: 13,
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    width: '80%',
+  },
   addCard: {
     display: 'flex',
     flexDirection: 'column',
